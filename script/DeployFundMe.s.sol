@@ -11,12 +11,12 @@ contract DeployFundMeScript is Script {
     //     vm.broadcast();
     // // }
 
-    // function run() external returns (FundMe) {
-    //     vm.startBroadcast();
+    function run() external returns (FundMe) {
+        vm.startBroadcast();
 
-    //     // FundMe counter = new FundMe();
+        FundMe fundMe = new FundMe(0x694AA1769357215DE4FAC081bf1f309aDC325306);
 
-    //     vm.stopBroadcast();
-    //     return counter;
-    // }
+        vm.stopBroadcast();
+        return fundMe;
+    }
 }

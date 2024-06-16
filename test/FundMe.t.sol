@@ -13,7 +13,6 @@ contract FundMeTest is Test {
     uint256 constant STARTING_BALANCE = 10 ether;
 
     function setUp() external {
-        // fundme = new FundMe(0x694AA1769357215DE4FAC081bf1f309aDC325306);
         DeployFundMeScript deployFundMe = new DeployFundMeScript();
         fundme = deployFundMe.run();
         vm.deal(USER, STARTING_BALANCE);

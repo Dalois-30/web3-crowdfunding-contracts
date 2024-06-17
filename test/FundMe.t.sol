@@ -15,7 +15,7 @@ contract FundMeTest is Test {
     function setUp() external {
         DeployFundMeScript deployFundMe = new DeployFundMeScript();
         fundme = deployFundMe.run();
-        vm.deal(USER, STARTING_BALANCE);
+        vm.deal(USER, STARTING_BALANCE); // set the initial balance of the address USER
     }
 
     function testMIN_USDT() public view {

@@ -23,7 +23,7 @@ contract FundMeTest is Test {
     }
 
     function testOwner() public view {
-        assertEq(fundme.i_owner(), msg.sender);
+        assertEq(fundme.getOwner(), msg.sender);
     }
 
     function testVersion() public view {
@@ -37,28 +37,45 @@ contract FundMeTest is Test {
         fundme.fund();
     }
 
-    function testFundUpdatesFundedDataStructure() public {
+    modifier funded() {
         vm.prank(USER); // the next transaction will be sent by USER
         fundme.fund{value: SEND_VALUE}();
+        _;
+    }
 
+    function testFundUpdatesFundedDataStructure() public funded() {
         uint256 amountFunded = fundme.getAddressToAmountFunded(USER);
         assertEq(amountFunded, SEND_VALUE);
     }
 
-    function testAddsFunderToArrayOfFunders() public {
-        vm.prank(USER); // the next transaction will be sent by USER
-        fundme.fund{value: SEND_VALUE}();
-
+    function testAddsFunderToArrayOfFunders() public funded {
         address funder = fundme.getFunder(0);
         assertEq(funder, USER); // Check if the first funder is the correct sender
     }
 
-    function testOnlyOwnerCanWithdraw() public {
-        vm.prank(USER); // the next transaction will be sent by USER
-        fundme.fund{value: SEND_VALUE}();
+    function testOnlyOwnerCanWithdraw() public funded {
+        // Instead of add these tho line every time, we can just add the modifier funded
+        // vm.prank(USER); // the next transaction will be sent by USER
+        // fundme.fund{value: SEND_VALUE}();
 
         vm.prank(USER); // the next transaction will be sent by USER
         vm.expectRevert(); // the errer that should be get
         fundme.withdraw();
+    }
+
+    function testWithdrawWithASingleFunder() public funded {
+        // Arrange
+        uint256 startingOwnerBalance = fundme.getOwner().balance;
+        uint256 startingFundMeBalance = address(fundme).balance;
+
+        // Act
+        vm.prank(fundme.getOwner());
+        fundme.withdraw();
+
+        // Assert
+        uint256 endingOwnerBalance = fundme.getOwner().balance;
+        uint256 endingFundMeBalance = address(fundme).balance;
+        assertEq(endingFundMeBalance, 0);
+        assertEq(startingFundMeBalance + startingOwnerBalance, endingOwnerBalance);
     }
 }

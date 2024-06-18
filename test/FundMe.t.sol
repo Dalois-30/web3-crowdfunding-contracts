@@ -40,7 +40,7 @@ contract FundMeTest is Test {
     function testFundUpdatesFundedDataStructure() public {
         vm.prank(USER); // the next transaction will be sent by USER
         fundme.fund{value: SEND_VALUE}();
-        
+
         uint256 amountFunded = fundme.getAddressToAmountFunded(USER);
         assertEq(amountFunded, SEND_VALUE);
     }
@@ -51,5 +51,14 @@ contract FundMeTest is Test {
 
         address funder = fundme.getFunder(0);
         assertEq(funder, USER); // Check if the first funder is the correct sender
+    }
+
+    function testOnlyOwnerCanWithdraw() public {
+        vm.prank(USER); // the next transaction will be sent by USER
+        fundme.fund{value: SEND_VALUE}();
+
+        vm.prank(USER); // the next transaction will be sent by USER
+        vm.expectRevert(); // the errer that should be get
+        fundme.withdraw();
     }
 }

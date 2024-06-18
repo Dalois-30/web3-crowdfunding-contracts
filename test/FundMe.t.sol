@@ -11,6 +11,7 @@ contract FundMeTest is Test {
     address USER = makeAddr("user"); // Create a new address based on the string provided
     uint256 constant SEND_VALUE = 0.1 ether;
     uint256 constant STARTING_BALANCE = 10 ether;
+    uint256 constant GAS_PRICE = 1;
 
     function setUp() external {
         DeployFundMeScript deployFundMe = new DeployFundMeScript();
@@ -97,9 +98,14 @@ contract FundMeTest is Test {
         uint256 startingFundMeBalance = address(fundme).balance;
 
         // Act
+        uint256 gasStart = gasleft(); // Built in fonction on solidity to get how much gas remains for the tx
+        vm.txGasPrice(GAS_PRICE);
         vm.startPrank(fundme.getOwner());
-        fundme.withdraw();
+        fundme.withdraw(); // By default anvil gas price is zero, o to simulate real gas price, xe need to add some new cheatCode from foundry
         vm.stopPrank(); // startPrank and stopPrank are the same as startBroadcast and stopBroadcast
+        uint256 gasEnd = gasleft();
+        uint256 gasUsed = (gasStart - gasEnd) * tx.gasprice; // tx.gasprice tell the current gasprice
+        console.log('gasUsed', gasUsed);
 
         // Assert
         assert(address(fundme).balance == 0);

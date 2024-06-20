@@ -44,7 +44,7 @@ contract FundMeTest is Test {
         _;
     }
 
-    function testFundUpdatesFundedDataStructure() public funded() {
+    function testFundUpdatesFundedDataStructure() public funded {
         uint256 amountFunded = fundme.getAddressToAmountFunded(USER);
         assertEq(amountFunded, SEND_VALUE);
     }
@@ -84,7 +84,7 @@ contract FundMeTest is Test {
         // Arrange
         uint160 numberOfFunders = 10;
         uint160 startingFunderIndex = 1; // we start from 1 because sometimes address(0) revert
-        for(uint160 i = startingFunderIndex; i < numberOfFunders; i++){
+        for (uint160 i = startingFunderIndex; i < numberOfFunders; i++) {
             // vm.prank new address
             // vm.deal new address
             // address()
@@ -116,7 +116,7 @@ contract FundMeTest is Test {
         // Arrange
         uint160 numberOfFunders = 10;
         uint160 startingFunderIndex = 1; // we start from 1 because sometimes address(0) revert
-        for(uint160 i = startingFunderIndex; i < numberOfFunders; i++){
+        for (uint160 i = startingFunderIndex; i < numberOfFunders; i++) {
             // vm.prank new address
             // vm.deal new address
             // address()

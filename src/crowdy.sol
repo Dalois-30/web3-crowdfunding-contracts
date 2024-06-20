@@ -3,15 +3,15 @@ pragma solidity 0.8.25;
 
 contract Crowdy {
     address public owner;
-    uint public projectTax;
-    uint public projectCount;
-    uint public balance;
+    uint256 public projectTax;
+    uint256 public projectCount;
+    uint256 public balance;
     statsStruct public stats;
     projectStruct[] projects;
 
     mapping(address => projectStruct[]) projectsOf;
-    mapping(uint => backerStruct[]) backersOf;
-    mapping(uint => bool) public projectExist;
+    mapping(uint256 => backerStruct[]) backersOf;
+    mapping(uint256 => bool) public projectExist;
 
     enum statusEnum {
         OPEN,
@@ -22,29 +22,29 @@ contract Crowdy {
     }
 
     struct statsStruct {
-        uint totalProjects;
-        uint totalBacking;
-        uint totalDonations;
+        uint256 totalProjects;
+        uint256 totalBacking;
+        uint256 totalDonations;
     }
 
     struct backerStruct {
         address owner;
-        uint contribution;
-        uint timestamp;
+        uint256 contribution;
+        uint256 timestamp;
         bool refunded;
     }
 
     struct projectStruct {
-        uint id;
+        uint256 id;
         address owner;
         string title;
         string description;
         string imageURL;
-        uint cost;
-        uint raised;
-        uint timestamp;
-        uint expiresAt;
-        uint backers;
+        uint256 cost;
+        uint256 raised;
+        uint256 timestamp;
+        uint256 expiresAt;
+        uint256 backers;
         statusEnum status;
     }
 
@@ -53,14 +53,9 @@ contract Crowdy {
         _;
     }
 
-    event Action(
-        uint256 id,
-        string actionType,
-        address indexed executor,
-        uint256 timestamp
-    );
+    event Action(uint256 id, string actionType, address indexed executor, uint256 timestamp);
 
-    constructor(uint _projectTax) {
+    constructor(uint256 _projectTax) {
         owner = msg.sender;
         projectTax = _projectTax;
     }
@@ -69,16 +64,13 @@ contract Crowdy {
         string memory title,
         string memory description,
         string memory imageURL,
-        uint cost,
-        uint expiresAt
+        uint256 cost,
+        uint256 expiresAt
     ) public returns (bool) {
         require(bytes(title).length > 0, "Title cannot be empty");
         require(bytes(description).length > 0, "Description cannot be empty");
         require(cost > 0 ether, "Cost cannot be zero");
-        require(
-            expiresAt < block.timestamp,
-            "The deadline should be a date in the future."
-        );
+        require(expiresAt < block.timestamp, "The deadline should be a date in the future.");
 
         projectStruct memory project;
         project.id = projectCount;
@@ -95,21 +87,16 @@ contract Crowdy {
         projectsOf[msg.sender].push(project);
         stats.totalProjects += 1;
 
-        emit Action(
-            projectCount++,
-            "PROJECT CREATED",
-            msg.sender,
-            block.timestamp
-        );
+        emit Action(projectCount++, "PROJECT CREATED", msg.sender, block.timestamp);
         return true;
     }
 
     function updateProject(
-        uint id,
+        uint256 id,
         string memory title,
         string memory description,
         string memory imageURL,
-        uint expiresAt
+        uint256 expiresAt
     ) public returns (bool) {
         require(msg.sender == projects[id].owner, "Unauthorized Entity");
         require(bytes(title).length > 0, "Title cannot be empty");
@@ -126,11 +113,8 @@ contract Crowdy {
         return true;
     }
 
-    function deleteProject(uint id) public returns (bool) {
-        require(
-            projects[id].status == statusEnum.OPEN,
-            "Project no longer opened"
-        );
+    function deleteProject(uint256 id) public returns (bool) {
+        require(projects[id].status == statusEnum.OPEN, "Project no longer opened");
         require(msg.sender == projects[id].owner, "Unauthorized Entity");
 
         projects[id].status = statusEnum.DELETED;
@@ -141,10 +125,10 @@ contract Crowdy {
         return true;
     }
 
-    function performRefund(uint id) internal {
-        for (uint i = 0; i < backersOf[id].length; i++) {
+    function performRefund(uint256 id) internal {
+        for (uint256 i = 0; i < backersOf[id].length; i++) {
             address _owner = backersOf[id][i].owner;
-            uint _contribution = backersOf[id][i].contribution;
+            uint256 _contribution = backersOf[id][i].contribution;
 
             backersOf[id][i].refunded = true;
             backersOf[id][i].timestamp = block.timestamp;
@@ -155,22 +139,17 @@ contract Crowdy {
         }
     }
 
-    function backProject(uint id) public payable returns (bool) {
+    function backProject(uint256 id) public payable returns (bool) {
         require(msg.value > 0 ether, "Ether must be greater than zero");
         require(projectExist[id], "Project not found");
-        require(
-            projects[id].status == statusEnum.OPEN,
-            "Project no longer opened"
-        );
+        require(projects[id].status == statusEnum.OPEN, "Project no longer opened");
 
         stats.totalBacking += 1;
         stats.totalDonations += msg.value;
         projects[id].raised += msg.value;
         projects[id].backers += 1;
 
-        backersOf[id].push(
-            backerStruct(msg.sender, msg.value, block.timestamp, false)
-        );
+        backersOf[id].push(backerStruct(msg.sender, msg.value, block.timestamp, false));
 
         emit Action(id, "PROJECT BACKED", msg.sender, block.timestamp);
 
@@ -190,9 +169,9 @@ contract Crowdy {
         return true;
     }
 
-    function performPayout(uint id) internal {
-        uint raised = projects[id].raised;
-        uint tax = (raised * projectTax) / 100;
+    function performPayout(uint256 id) internal {
+        uint256 raised = projects[id].raised;
+        uint256 tax = (raised * projectTax) / 100;
 
         projects[id].status = statusEnum.PAIDOUT;
 
@@ -204,10 +183,9 @@ contract Crowdy {
         emit Action(id, "PROJECT PAID OUT", msg.sender, block.timestamp);
     }
 
-    function requestRefund(uint id) public returns (bool) {
+    function requestRefund(uint256 id) public returns (bool) {
         require(
-            projects[id].status != statusEnum.REVERTED ||
-                projects[id].status != statusEnum.DELETED,
+            projects[id].status != statusEnum.REVERTED || projects[id].status != statusEnum.DELETED,
             "Project not marked as revert or delete"
         );
 
@@ -216,25 +194,19 @@ contract Crowdy {
         return true;
     }
 
-    function payOutProject(uint id) public returns (bool) {
-        require(
-            projects[id].status == statusEnum.APPROVED,
-            "Project not APPROVED"
-        );
-        require(
-            msg.sender == projects[id].owner || msg.sender == owner,
-            "Unauthorized Entity"
-        );
+    function payOutProject(uint256 id) public returns (bool) {
+        require(projects[id].status == statusEnum.APPROVED, "Project not APPROVED");
+        require(msg.sender == projects[id].owner || msg.sender == owner, "Unauthorized Entity");
 
         performPayout(id);
         return true;
     }
 
-    function changeTax(uint _taxPct) public ownerOnly {
+    function changeTax(uint256 _taxPct) public ownerOnly {
         projectTax = _taxPct;
     }
 
-    function getProject(uint id) public view returns (projectStruct memory) {
+    function getProject(uint256 id) public view returns (projectStruct memory) {
         require(projectExist[id], "Project not found");
 
         return projects[id];
@@ -244,12 +216,12 @@ contract Crowdy {
         return projects;
     }
 
-    function getBackers(uint id) public view returns (backerStruct[] memory) {
+    function getBackers(uint256 id) public view returns (backerStruct[] memory) {
         return backersOf[id];
     }
 
     function payTo(address to, uint256 amount) internal {
-        (bool success, ) = payable(to).call{value: amount}("");
+        (bool success,) = payable(to).call{value: amount}("");
         require(success);
     }
 }

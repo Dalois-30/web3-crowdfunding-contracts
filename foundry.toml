@@ -9,5 +9,6 @@ remappings = [
     "forge-std/=lib/forge-std/src/",
     "foundry-devops/=lib/foundry-devops/",
 ]
+ffi = true
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

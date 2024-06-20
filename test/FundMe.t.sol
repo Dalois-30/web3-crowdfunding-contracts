@@ -98,14 +98,46 @@ contract FundMeTest is Test {
         uint256 startingFundMeBalance = address(fundme).balance;
 
         // Act
-        uint256 gasStart = gasleft(); // Built in fonction on solidity to get how much gas remains for the tx
-        vm.txGasPrice(GAS_PRICE);
+        // uint256 gasStart = gasleft(); // Built in fonction on solidity to get how much gas remains for the tx
+        // vm.txGasPrice(GAS_PRICE);
         vm.startPrank(fundme.getOwner());
         fundme.withdraw(); // By default anvil gas price is zero, o to simulate real gas price, xe need to add some new cheatCode from foundry
         vm.stopPrank(); // startPrank and stopPrank are the same as startBroadcast and stopBroadcast
-        uint256 gasEnd = gasleft();
-        uint256 gasUsed = (gasStart - gasEnd) * tx.gasprice; // tx.gasprice tell the current gasprice
-        console.log('gasUsed', gasUsed);
+        // uint256 gasEnd = gasleft();
+        // uint256 gasUsed = (gasStart - gasEnd) * tx.gasprice; // tx.gasprice tell the current gasprice
+        // console.log('gasUsed', gasUsed);
+
+        // Assert
+        assert(address(fundme).balance == 0);
+        assert(startingFundMeBalance + startingOwnerBalance == fundme.getOwner().balance);
+    }
+
+    function testWithdrawFromMultipleFunderCheaper() public funded {
+        // Arrange
+        uint160 numberOfFunders = 10;
+        uint160 startingFunderIndex = 1; // we start from 1 because sometimes address(0) revert
+        for(uint160 i = startingFunderIndex; i < numberOfFunders; i++){
+            // vm.prank new address
+            // vm.deal new address
+            // address()
+            hoax(address(i), SEND_VALUE); // create new address and send the amount SEND_VALUE to that address
+            // because of the hoax function, we don't need to prank the new address, the next transaction is automatically send
+            fundme.fund{value: SEND_VALUE}();
+            // fund the fundme
+        }
+
+        uint256 startingOwnerBalance = fundme.getOwner().balance;
+        uint256 startingFundMeBalance = address(fundme).balance;
+
+        // Act
+        // uint256 gasStart = gasleft(); // Built in fonction on solidity to get how much gas remains for the tx
+        // vm.txGasPrice(GAS_PRICE);
+        vm.startPrank(fundme.getOwner());
+        fundme.cheaperWithdraw(); // By default anvil gas price is zero, o to simulate real gas price, xe need to add some new cheatCode from foundry
+        vm.stopPrank(); // startPrank and stopPrank are the same as startBroadcast and stopBroadcast
+        // uint256 gasEnd = gasleft();
+        // uint256 gasUsed = (gasStart - gasEnd) * tx.gasprice; // tx.gasprice tell the current gasprice
+        // console.log('gasUsed', gasUsed);
 
         // Assert
         assert(address(fundme).balance == 0);

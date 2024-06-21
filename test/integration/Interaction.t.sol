@@ -35,4 +35,4 @@ contract InteractionsTest is Test {
         // address funder = fundme.getFunder(0);
         // assertEq(funder, USER); // Check if the first funder is the correct sender
     }
-}
+} 

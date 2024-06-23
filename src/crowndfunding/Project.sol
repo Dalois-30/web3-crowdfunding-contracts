@@ -1,13 +1,25 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import { ConfirmedOwner } from "@chainlink/contracts/src/v0.8/shared/access/ConfirmedOwner.sol";
+import {ConfirmedOwner} from "@chainlink/contracts/src/v0.8/shared/access/ConfirmedOwner.sol";
 
 /**
  * @title Project
- * @dev This contract manages an individual crowdfunding project, allowing contributions, updates, and refunds.
+ * @dev A crowdfunding project contract that allows users to contribute funds and track the progress of the project.
+ * Author: Nguenang Dalois
  */
 contract Project is ConfirmedOwner {
+    // Error messages
+    error TitleCannotBeEmpty();
+    error DescriptionCannotBeEmpty();
+    error ImageURLCannotBeEmpty();
+    error ContributionMustBeGreaterThanZero();
+    error ProjectNotOpen();
+    error ProjectNotActive();
+    error ProjectNotMarkedForRefund();
+    error PaymentFailed();
+
+    // Project details
     string private s_title;
     string private s_description;
     string private s_imageURL;
@@ -15,12 +27,12 @@ contract Project is ConfirmedOwner {
     uint256 private s_raised;
     uint256 private s_timestamp;
     uint256 private s_expiresAt;
-    uint256 private s_backers;
     bool private s_isActive;
     uint256 private s_projectTax;
 
     address private immutable i_adminOwner;
 
+    // Project status enumeration
     enum Status {
         OPEN,
         APPROVED,
@@ -29,17 +41,21 @@ contract Project is ConfirmedOwner {
         PAIDOUT
     }
 
+    // Current project status
     Status private s_status;
 
+    // Backer struct to store contribution details
     struct Backer {
         uint256 contribution;
         uint256 timestamp;
         bool refunded;
     }
 
+    // Mapping to store backers and their contributions
     mapping(address => Backer) private s_backersOf;
     address[] private s_backerAddresses;
 
+    // Event emitted for various actions
     event Action(string actionType, address indexed executor, uint256 timestamp);
 
     /**
@@ -47,6 +63,7 @@ contract Project is ConfirmedOwner {
      * @param _title The title of the project.
      * @param _description The description of the project.
      * @param _imageURL The URL of the project image.
+     * @param _adminOwner The admin owner address.
      * @param _cost The total cost required for the project.
      * @param _expiresAt The expiration timestamp for the project.
      * @param _projectTax The tax percentage applied to the raised amount upon payout.
@@ -80,11 +97,18 @@ contract Project is ConfirmedOwner {
     }
 
     /**
+     * @dev Getter for the admin owner.
+     */
+    function getAdminOwner() external view returns (address) {
+        return i_adminOwner;
+    }
+
+    /**
      * @dev Setter for the title. Only callable by the owner.
      * @param _title The new title.
      */
     function setTitle(string memory _title) external onlyOwner {
-        require(bytes(_title).length > 0, "Title cannot be empty");
+        if (bytes(_title).length == 0) revert TitleCannotBeEmpty();
         s_title = _title;
         emit Action("TITLE UPDATED", msg.sender, block.timestamp);
     }
@@ -108,7 +132,7 @@ contract Project is ConfirmedOwner {
      * @param _description The new description.
      */
     function setDescription(string memory _description) external onlyOwner {
-        require(bytes(_description).length > 0, "Description cannot be empty");
+        if (bytes(_description).length == 0) revert DescriptionCannotBeEmpty();
         s_description = _description;
         emit Action("DESCRIPTION UPDATED", msg.sender, block.timestamp);
     }
@@ -125,7 +149,7 @@ contract Project is ConfirmedOwner {
      * @param _imageURL The new imageURL.
      */
     function setImageURL(string memory _imageURL) external onlyOwner {
-        require(bytes(_imageURL).length > 0, "Image URL cannot be empty");
+        if (bytes(_imageURL).length == 0) revert ImageURLCannotBeEmpty();
         s_imageURL = _imageURL;
         emit Action("IMAGE URL UPDATED", msg.sender, block.timestamp);
     }
@@ -171,7 +195,7 @@ contract Project is ConfirmedOwner {
      * @dev Getter for the number of backers.
      */
     function getBackers() external view returns (uint256) {
-        return s_backers;
+        return s_backerAddresses.length;
     }
 
     /**
@@ -217,13 +241,12 @@ contract Project is ConfirmedOwner {
      * Contributions are only allowed while the project is active and open.
      */
     function backProject() external payable {
-        require(msg.value > 0 ether, "Contribution must be greater than zero");
-        require(s_status == Status.OPEN, "Project is no longer open");
-        require(s_isActive, "Project is not active");
+        if (msg.value == 0) revert ContributionMustBeGreaterThanZero();
+        if (s_status != Status.OPEN) revert ProjectNotOpen();
+        if (!s_isActive) revert ProjectNotActive();
 
         if (s_backersOf[msg.sender].contribution == 0) {
             s_backerAddresses.push(msg.sender);
-            s_backers += 1;
         }
 
         s_backersOf[msg.sender].contribution += msg.value;
@@ -259,10 +282,10 @@ contract Project is ConfirmedOwner {
         string memory _imageURL,
         uint256 _expiresAt
     ) external onlyOwner {
-        require(s_isActive, "Project is not active");
-        require(bytes(_title).length > 0, "Title cannot be empty");
-        require(bytes(_description).length > 0, "Description cannot be empty");
-        require(bytes(_imageURL).length > 0, "Image URL cannot be empty");
+        if (!s_isActive) revert ProjectNotActive();
+        if (bytes(_title).length == 0) revert TitleCannotBeEmpty();
+        if (bytes(_description).length == 0) revert DescriptionCannotBeEmpty();
+        if (bytes(_imageURL).length == 0) revert ImageURLCannotBeEmpty();
 
         s_title = _title;
         s_description = _description;
@@ -276,8 +299,8 @@ contract Project is ConfirmedOwner {
      * @dev Deletes the project. Only callable by the owner.
      */
     function deleteProject() external onlyOwner {
-        require(s_status == Status.OPEN, "Project is no longer open");
-        require(s_isActive, "Project is not active");
+        if (s_status != Status.OPEN) revert ProjectNotOpen();
+        if (!s_isActive) revert ProjectNotActive();
 
         s_status = Status.DELETED;
         s_isActive = false;
@@ -291,7 +314,8 @@ contract Project is ConfirmedOwner {
      * This function iterates over all backers and refunds their contributions.
      */
     function performRefund() internal {
-        for (uint256 i = 0; i < s_backerAddresses.length; i++) {
+        uint256 backerLength = s_backerAddresses.length;
+        for (uint256 i = 0; i < backerLength; i++) {
             address backer = s_backerAddresses[i];
             if (!s_backersOf[backer].refunded) {
                 uint256 contribution = s_backersOf[backer].contribution;
@@ -300,7 +324,7 @@ contract Project is ConfirmedOwner {
                 s_backersOf[backer].timestamp = block.timestamp;
                 payTo(backer, contribution);
 
-                emit Action("BACKER REFUNDED", backer, block.timestamp);
+                // emit Action("BACKER REFUNDED", backer, block.timestamp);
             }
         }
     }
@@ -310,8 +334,8 @@ contract Project is ConfirmedOwner {
      * Refunds are only processed if the project is marked as reverted or deleted.
      */
     function requestRefund() external {
-        require(s_status == Status.REVERTED || s_status == Status.DELETED, "Project not marked for refund");
-        require(s_isActive, "Project is not active");
+        if (s_status != Status.REVERTED && s_status != Status.DELETED) revert ProjectNotMarkedForRefund();
+        if (!s_isActive) revert ProjectNotActive();
 
         s_status = Status.REVERTED;
         emit Action("STATUS UPDATED TO REVERTED", msg.sender, block.timestamp);
@@ -324,8 +348,8 @@ contract Project is ConfirmedOwner {
      * A tax is deducted from the raised amount before payout.
      */
     function payOutProject() external onlyOwner {
-        require(s_status == Status.APPROVED, "Project is not approved");
-        require(s_isActive, "Project is not active");
+        if (s_status != Status.APPROVED) revert ProjectNotOpen();
+        if (!s_isActive) revert ProjectNotActive();
 
         s_status = Status.PAIDOUT;
         s_isActive = false;
@@ -345,7 +369,7 @@ contract Project is ConfirmedOwner {
      * @param amount The amount of Ether to send.
      */
     function payTo(address to, uint256 amount) internal {
-        (bool success, ) = payable(to).call{value: amount}("");
-        require(success, "Payment failed");
+        (bool success,) = payable(to).call{value: amount}("");
+        if (!success) revert PaymentFailed();
     }
 }

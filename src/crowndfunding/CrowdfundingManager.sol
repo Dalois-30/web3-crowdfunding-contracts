@@ -8,40 +8,37 @@ import "./Project.sol";
  * @dev This contract manages the crowdfunding platform as a whole.
  */
 contract CrowdfundingManager {
-    address public owner;
-    uint8 public projectTax;
-    uint public projectCount;
-    uint public balance;
+    address public s_owner;
+    uint8 public s_projectTax;
+    uint256 public projectCount;
+    uint256 public balance;
     Project[] public projects;
 
     // Mapping to retrieve a project by its address
     mapping(address => Project) public projectByAddress;
 
     struct Stats {
-        uint totalProjects;
-        uint totalBacking;
-        uint totalDonations;
+        uint256 totalProjects;
+        uint256 totalBacking;
+        uint256 totalDonations;
     }
+
     Stats public stats;
 
     modifier ownerOnly() {
-        require(msg.sender == owner, "Owner reserved only");
+        require(msg.sender == s_owner, "Owner reserved only");
         _;
     }
 
-    event ProjectCreated(
-        address indexed projectAddress,
-        address indexed creator,
-        uint256 timestamp
-    );
+    event ProjectCreated(address indexed projectAddress, address indexed creator, uint256 timestamp);
 
     /**
      * @dev Constructor of the CrowdfundingManager contract.
      * @param _projectTax The percentage tax levied on projects.
      */
     constructor(uint8 _projectTax) {
-        owner = msg.sender;
-        projectTax = _projectTax;
+        s_owner = msg.sender;
+        s_projectTax = _projectTax;
     }
 
     /**
@@ -57,25 +54,15 @@ contract CrowdfundingManager {
         string memory title,
         string memory description,
         string memory imageURL,
-        uint cost,
-        uint expiresAt
+        uint256 cost,
+        uint256 expiresAt
     ) public returns (address) {
         require(bytes(title).length > 0, "Title cannot be empty");
         require(bytes(description).length > 0, "Description cannot be empty");
         require(cost > 0 ether, "Cost cannot be zero");
-        require(
-            expiresAt > block.timestamp,
-            "The deadline should be a date in the future."
-        );
+        require(expiresAt > block.timestamp, "The deadline should be a date in the future.");
 
-        Project newProject = new Project(
-            title,
-            description,
-            imageURL,
-            cost,
-            expiresAt,
-            projectTax
-        );
+        Project newProject = new Project(title, description, imageURL, cost, expiresAt, s_projectTax);
         projects.push(newProject);
         projectByAddress[address(newProject)] = newProject;
         stats.totalProjects += 1;
@@ -98,7 +85,7 @@ contract CrowdfundingManager {
         string memory title,
         string memory description,
         string memory imageURL,
-        uint expiresAt
+        uint256 expiresAt
     ) public {
         Project project = projectByAddress[projectAddress];
         project.updateProject(title, description, imageURL, expiresAt);
@@ -147,7 +134,7 @@ contract CrowdfundingManager {
      * @param _taxPct The new tax percentage.
      */
     function changeTax(uint8 _taxPct) public ownerOnly {
-        projectTax = _taxPct;
+        s_projectTax = _taxPct;
     }
 
     /**
@@ -165,9 +152,7 @@ contract CrowdfundingManager {
      * @return uint[6] An array containing the project's statistics:
      * [cost, raised, backers, timestamp, expiresAt, status].
      */
-    function getProjectStats(
-        address projectAddress
-    ) public view returns (uint[6] memory) {
+    function getProjectStats(address projectAddress) public view returns (uint256[6] memory) {
         Project project = projectByAddress[projectAddress];
         return [
             project.cost(),
@@ -175,7 +160,7 @@ contract CrowdfundingManager {
             project.backers(),
             project.timestamp(),
             project.expiresAt(),
-            uint(project.status())
+            uint256(project.status())
         ];
     }
 
@@ -185,7 +170,7 @@ contract CrowdfundingManager {
      * @param amount The amount to pay.
      */
     function payTo(address to, uint256 amount) internal {
-        (bool success, ) = payable(to).call{value: amount}("");
+        (bool success,) = payable(to).call{value: amount}("");
         require(success, "Payment failed");
     }
 }

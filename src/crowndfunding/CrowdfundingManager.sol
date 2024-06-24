@@ -111,7 +111,7 @@ contract CrowdfundingManager is ConfirmedOwner {
      */
     function backProject(address projectAddress) external payable {
         Project project = projectByAddress[projectAddress];
-        project.backProject{value: msg.value}();
+        project.backProject{value: msg.value}(msg.sender);
         stats.totalBacking += 1;
         stats.totalContributors += 1;
         stats.totalDonations += msg.value;

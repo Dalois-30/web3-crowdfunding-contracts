@@ -240,31 +240,31 @@ contract Project is ConfirmedOwner {
      * @dev Allows contributors to back the project with Ether.
      * Contributions are only allowed while the project is active and open.
      */
-    function backProject() external payable {
+    function backProject(address _backer) external payable onlyOwner {
         if (msg.value == 0) revert ContributionMustBeGreaterThanZero();
         if (s_status != Status.OPEN) revert ProjectNotOpen();
         if (!s_isActive) revert ProjectNotActive();
 
-        if (s_backersOf[msg.sender].contribution == 0) {
-            s_backerAddresses.push(msg.sender);
+        if (s_backersOf[_backer].contribution == 0) {
+            s_backerAddresses.push(_backer);
         }
 
-        s_backersOf[msg.sender].contribution += msg.value;
-        s_backersOf[msg.sender].timestamp = block.timestamp;
-        s_backersOf[msg.sender].refunded = false;
+        s_backersOf[_backer].contribution += msg.value;
+        s_backersOf[_backer].timestamp = block.timestamp;
+        s_backersOf[_backer].refunded = false;
 
         s_raised += msg.value;
 
-        emit Action("PROJECT BACKED", msg.sender, block.timestamp);
+        emit Action("PROJECT BACKED", _backer, block.timestamp);
 
         if (s_raised >= s_cost) {
             s_status = Status.APPROVED;
-            emit Action("STATUS UPDATED TO APPROVED", msg.sender, block.timestamp);
+            emit Action("STATUS UPDATED TO APPROVED", _backer, block.timestamp);
         }
 
         if (block.timestamp >= s_expiresAt) {
             s_status = Status.REVERTED;
-            emit Action("STATUS UPDATED TO REVERTED", msg.sender, block.timestamp);
+            emit Action("STATUS UPDATED TO REVERTED", _backer, block.timestamp);
             performRefund();
         }
     }

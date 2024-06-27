@@ -26,6 +26,7 @@ contract CrowdfundingManager is ConfirmedOwner {
 
     // Mapping from project addresses to Project instances
     mapping(address => Project) private projectByAddress;
+    address private immutable i_owner;
 
     // Array to store all projects
     Project[] private s_projects;
@@ -43,6 +44,7 @@ contract CrowdfundingManager is ConfirmedOwner {
      * @param _projectTax The percentage tax levied on projects.
      */
     constructor(uint8 _projectTax) ConfirmedOwner(msg.sender) {
+        i_owner = msg.sender;
         s_projectTax = _projectTax;
     }
 
@@ -221,5 +223,9 @@ contract CrowdfundingManager is ConfirmedOwner {
      */
     function updateProjectTax(address projectAddress, uint256 projectTax) external onlyOwner {
         Project(projectByAddress[projectAddress]).setProjectTax(projectTax);
+    }
+
+    function getOwner() external view returns (address) {
+        return i_owner;
     }
 }

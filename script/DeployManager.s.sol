@@ -1,28 +1,26 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.13;
+pragma solidity 0.8.25;
 
 import {Script, console} from "forge-std/Script.sol";
-import {FundMe} from "../src/FundMe.sol";
-import {HelperConfig} from "./HelperConfig.s.sol";
+import {CrowdfundingManager} from "../src/crowdfunding/CrowdfundingManager.sol";
+import {Project} from "../src/crowdfunding/Project.sol";
+import {console2} from "forge-std/console2.sol";
 
 contract DeployManagerScript is Script {
+
+
+    uint8 constant PROJECT_TAX = 1;
+
     function setUp() public {}
 
-    // function run() public {
-    //     vm.broadcast();
-    // // }
-
-    function run() external returns (FundMe) {
+    function run() external returns (CrowdfundingManager) {
         // Before startBroadcast -> Not a "real" transaction
-        HelperConfig helperConfig = new HelperConfig();
-        address ethUsdPriceFeed = helperConfig.activeNetworkConfig();
-
         // After startBroadcast -> real transaction
         vm.startBroadcast();
 
-        FundMe fundMe = new FundMe(ethUsdPriceFeed);
-
+        CrowdfundingManager crowdfundingManager = new CrowdfundingManager(PROJECT_TAX);
         vm.stopBroadcast();
-        return fundMe;
+        console2.log("Manager deployed at:", address(crowdfundingManager));
+        return crowdfundingManager;
     }
 }

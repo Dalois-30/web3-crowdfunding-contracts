@@ -2,6 +2,8 @@
 pragma solidity 0.8.25;
 
 import {ConfirmedOwner} from "@chainlink/contracts/src/v0.8/shared/access/ConfirmedOwner.sol";
+import {OracleLib, AggregatorV3Interface} from "../libraries/OracleLib.sol";
+import "./DecentralizedStableCoin.sol";
 
 /**
  * @title Project
@@ -9,6 +11,8 @@ import {ConfirmedOwner} from "@chainlink/contracts/src/v0.8/shared/access/Confir
  * Author: Nguenang Dalois
  */
 contract Project is ConfirmedOwner {
+    using OracleLib for AggregatorV3Interface;
+
     // Error messages
     error TitleCannotBeEmpty();
     error DescriptionCannotBeEmpty();
@@ -17,6 +21,7 @@ contract Project is ConfirmedOwner {
     error ProjectNotOpen();
     error ProjectNotActive();
     error ProjectNotMarkedForRefund();
+    error StablecoinTransferFailed();
     error PaymentFailed();
 
     // Project details
@@ -31,6 +36,11 @@ contract Project is ConfirmedOwner {
     uint256 private s_projectTax;
 
     address private immutable i_adminOwner;
+    address private immutable i_stablecoinAddress;
+    DecentralizedStableCoin private immutable i_stablecoin;
+    address private immutable i_ethPriceFeed;
+
+    uint256 public constant PRECISION = 1e18;
 
     // Project status enumeration
     enum Status {
@@ -56,7 +66,11 @@ contract Project is ConfirmedOwner {
     address[] private s_backerAddresses;
 
     // Event emitted for various actions
-    event Action(string actionType, address indexed executor, uint256 timestamp);
+    event Action(
+        string actionType,
+        address indexed executor,
+        uint256 timestamp
+    );
 
     /**
      * @dev Constructor to initialize the Project contract.
@@ -73,6 +87,8 @@ contract Project is ConfirmedOwner {
         string memory _description,
         string memory _imageURL,
         address _adminOwner,
+        address _coinAddress,
+        address _ethPriceFeed,
         uint256 _cost,
         uint256 _expiresAt,
         uint256 _projectTax
@@ -87,6 +103,9 @@ contract Project is ConfirmedOwner {
         s_isActive = true;
         s_projectTax = _projectTax;
         s_status = Status.OPEN;
+        i_stablecoinAddress = _coinAddress;
+        i_ethPriceFeed = _ethPriceFeed;
+        i_stablecoin = DecentralizedStableCoin(i_stablecoinAddress);
     }
 
     /**
@@ -188,7 +207,11 @@ contract Project is ConfirmedOwner {
      */
     function setExpiresAt(uint256 _expiresAt) external onlyOwner {
         s_expiresAt = _expiresAt;
-        emit Action("EXPIRATION TIMESTAMP UPDATED", msg.sender, block.timestamp);
+        emit Action(
+            "EXPIRATION TIMESTAMP UPDATED",
+            msg.sender,
+            block.timestamp
+        );
     }
 
     /**
@@ -237,31 +260,52 @@ contract Project is ConfirmedOwner {
     }
 
     /**
-     * @dev Allows contributors to back the project with Ether.
-     * Contributions are only allowed while the project is active and open.
+     * @notice Allows a backer to contribute to the project
+     * @dev Contributions can be made in ETH or stablecoin
+     * @param _backer The address of the backer
      */
-    function backProject(address _backer) external payable onlyOwner {
-        if (msg.value == 0) revert ContributionMustBeGreaterThanZero();
+    function backProject(address _backer) external payable {
         if (s_status != Status.OPEN) revert ProjectNotOpen();
         if (!s_isActive) revert ProjectNotActive();
 
+        uint256 usdContribution;
+        if (msg.value > 0) {
+            // Payment in ETH
+            if (msg.value < getEthValueOfUsd(1)) revert ContributionMustBeGreaterThanZero();
+            usdContribution = (msg.value * PRECISION) / getEthPrice();
+            
+            // Mint equivalent stablecoins and send to this contract
+            DecentralizedStableCoin(i_stablecoinAddress).mint(address(this), usdContribution);
+        } else {
+            // Payment in stablecoin
+            usdContribution = i_stablecoin.allowance(_backer, address(this));
+            if (usdContribution == 0) revert ContributionMustBeGreaterThanZero();
+            
+            // Transfer stablecoins from backer to this contract
+            bool success = i_stablecoin.transferFrom(_backer, address(this), usdContribution);
+            if (!success) revert StablecoinTransferFailed();
+        }
+
+        // Update backer information
         if (s_backersOf[_backer].contribution == 0) {
             s_backerAddresses.push(_backer);
         }
 
-        s_backersOf[_backer].contribution += msg.value;
+        s_backersOf[_backer].contribution += usdContribution;
         s_backersOf[_backer].timestamp = block.timestamp;
         s_backersOf[_backer].refunded = false;
 
-        s_raised += msg.value;
+        s_raised += usdContribution;
 
         emit Action("PROJECT BACKED", _backer, block.timestamp);
 
+        // Check if project is fully funded
         if (s_raised >= s_cost) {
             s_status = Status.APPROVED;
             emit Action("STATUS UPDATED TO APPROVED", _backer, block.timestamp);
         }
 
+        // Check if project has expired
         if (block.timestamp >= s_expiresAt) {
             s_status = Status.REVERTED;
             emit Action("STATUS UPDATED TO REVERTED", _backer, block.timestamp);
@@ -310,21 +354,18 @@ contract Project is ConfirmedOwner {
     }
 
     /**
-     * @dev Internal function to perform refunds to all backers.
-     * This function iterates over all backers and refunds their contributions.
+     * @notice Performs refunds to all backers
+     * @dev This function is called internally when the project is reverted
+     * @dev All refunds are made in stablecoin
      */
     function performRefund() internal {
-        uint256 backerLength = s_backerAddresses.length;
-        for (uint256 i = 0; i < backerLength; i++) {
+        for (uint256 i = 0; i < s_backerAddresses.length; i++) {
             address backer = s_backerAddresses[i];
-            if (!s_backersOf[backer].refunded) {
-                uint256 contribution = s_backersOf[backer].contribution;
-
+            uint256 contribution = s_backersOf[backer].contribution;
+            if (contribution > 0 && !s_backersOf[backer].refunded) {
                 s_backersOf[backer].refunded = true;
-                s_backersOf[backer].timestamp = block.timestamp;
-                payTo(backer, contribution);
-
-                // emit Action("BACKER REFUNDED", backer, block.timestamp);
+                bool success = i_stablecoin.transfer(backer, contribution);
+                if (!success) revert StablecoinTransferFailed();
             }
         }
     }
@@ -334,7 +375,8 @@ contract Project is ConfirmedOwner {
      * Refunds are only processed if the project is marked as reverted or deleted.
      */
     function requestRefund() external {
-        if (s_status != Status.REVERTED && s_status != Status.DELETED) revert ProjectNotMarkedForRefund();
+        if (s_status != Status.REVERTED && s_status != Status.DELETED)
+            revert ProjectNotMarkedForRefund();
         if (!s_isActive) revert ProjectNotActive();
 
         s_status = Status.REVERTED;
@@ -343,9 +385,10 @@ contract Project is ConfirmedOwner {
     }
 
     /**
-     * @dev Allows the owner to payout the project funds.
-     * The project must be approved and active to perform a payout.
-     * A tax is deducted from the raised amount before payout.
+     * @notice Allows the owner to payout the project funds
+     * @dev The project must be approved and active to perform a payout
+     * @dev A tax is deducted from the raised amount before payout
+     * @dev All payouts are made in stablecoin
      */
     function payOutProject() external onlyOwner {
         if (s_status != Status.APPROVED) revert ProjectNotOpen();
@@ -357,19 +400,29 @@ contract Project is ConfirmedOwner {
         uint256 tax = (s_raised * s_projectTax) / 100;
         uint256 amountAfterTax = s_raised - tax;
 
-        payTo(msg.sender, tax);
-        payTo(i_adminOwner, amountAfterTax);
+        // Transfer tax to the contract owner
+        bool successTax = i_stablecoin.transfer(msg.sender, tax);
+        // Transfer remaining amount to the project admin
+        bool successPayout = i_stablecoin.transfer(i_adminOwner, amountAfterTax);
+
+        if (!successTax || !successPayout) revert StablecoinTransferFailed();
 
         emit Action("PROJECT PAID OUT", msg.sender, block.timestamp);
     }
 
-    /**
-     * @dev Internal function to send Ether to a specified address.
-     * @param to The address to send Ether to.
-     * @param amount The amount of Ether to send.
-     */
-    function payTo(address to, uint256 amount) internal {
-        (bool success,) = payable(to).call{value: amount}("");
-        if (!success) revert PaymentFailed();
+    /// @notice Gets the current USDC price from the oracle
+    /// @return The USDC price scaled by ADDITIONAL_FEED_PRECISION
+    function getEthPrice() public view returns (uint256) {
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(i_ethPriceFeed);
+        (, int256 price, , , ) = priceFeed.staleCheckLatestRoundData();
+        return uint256(price);
     }
+
+    /// @notice Converts a USD amount to its USDC value
+    /// @param usdAmount The amount of USD
+    /// @return The ETH value of the given USD amount
+    function getEthValueOfUsd(uint256 usdAmount) public view returns (uint256) {
+        return (usdAmount * getEthPrice()) / PRECISION;
+    }
+
 }

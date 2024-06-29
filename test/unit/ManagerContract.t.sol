@@ -3,6 +3,7 @@ pragma solidity 0.8.25;
 
 import {Test, console} from "forge-std/Test.sol";
 import {CrowdfundingManager} from "../../src/crowdfunding/CrowdfundingManager.sol";
+import {DecentralizedStableCoin} from "../../src/crowdfunding/DecentralizedStableCoin.sol";
 import {Project} from "../../src/crowdfunding/Project.sol";
 import {DeployCoinScript} from "../../script/crowdfunding/DeployCoin.s.sol";
 import {DeployManagerScript} from "../../script/crowdfunding/DeployManager.s.sol";
@@ -17,7 +18,7 @@ contract ManagerTest is Test {
     uint256 constant STARTING_BALANCE = 10 ether;
 
     address projectAddress;
-    uint256 cost = 15 ether;
+    uint256 cost = 31500;
     uint256 expireAt = 1719716276;
     string title = "Farm collect";
     string description = "Creation of a farm";
@@ -25,7 +26,6 @@ contract ManagerTest is Test {
 
     function setUp() external {
         vm.deal(USER, STARTING_BALANCE);
-        vm.deal(USER1, STARTING_BALANCE);
         DeployManagerScript deployManager = new DeployManagerScript();
         manager = deployManager.run();
         vm.prank(manager.getOwner());
@@ -37,6 +37,8 @@ contract ManagerTest is Test {
             expireAt
         );
         project = Project(projectAddress);
+        console.log("Manager owner", manager.getOwner());
+        console.log("Project owner", project.getOwner());
         // console.log("====================================Project Firsts Informations====================================");
         // console.log("Title:", project.getTitle());
         // console.log("Description:", project.getDescription());
@@ -111,11 +113,12 @@ contract ManagerTest is Test {
     }
 
     function testPayOut() public {
-        vm.prank(USER);
-        manager.backProject{value: SEND_VALUE}(projectAddress);
+        // vm.prank(USER);
+        // manager.backProject{value: SEND_VALUE}(projectAddress);
+
         
         // Arrange
-        uint160 numberOfFunders = 150;
+        uint160 numberOfFunders = 151;
         uint160 startingFunderIndex = 1; // we start from 1 because sometimes address(0) revert
         for (uint160 i = startingFunderIndex; i < numberOfFunders; i++) {
             // vm.prank new address
@@ -126,11 +129,14 @@ contract ManagerTest is Test {
             manager.backProject{value: SEND_VALUE}(projectAddress);
             // console.log("Address:", project.getAllBackers()[i]);
         }
-        console.log("Collected:", address(projectAddress).balance);
-        vm.deal(address(manager), cost);
+        console.log("USDT Collected:", DecentralizedStableCoin(project.getStablecoinAddress()).balanceOf(projectAddress));
+        console.log("USDT Collected by admin:", DecentralizedStableCoin(project.getStablecoinAddress()).balanceOf(manager.getOwner()));
         console.log("Manager Address:", address(manager).balance);
         vm.prank(manager.getOwner());
         manager.payOutProject(projectAddress);
-        console.log("Collected:", address(projectAddress).balance);
+        console.log("USDT Collected 2:", DecentralizedStableCoin(project.getStablecoinAddress()).balanceOf(projectAddress));
+        console.log("USDT Collected by contract 2:", DecentralizedStableCoin(project.getStablecoinAddress()).balanceOf(project.getOwner()));
+        console.log("USDT Collected by admin 2:", DecentralizedStableCoin(project.getStablecoinAddress()).balanceOf(manager.getOwner()));
+        console.log("Manager Address:", address(manager).balance);
     }
 }

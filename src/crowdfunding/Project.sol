@@ -19,6 +19,7 @@ contract Project is ConfirmedOwner {
     error ImageURLCannotBeEmpty();
     error ContributionMustBeGreaterThanZero();
     error ProjectNotOpen();
+    error ProjectNotApproved();
     error ProjectNotActive();
     error ProjectNotMarkedForRefund();
     error StablecoinTransferFailed();
@@ -39,8 +40,10 @@ contract Project is ConfirmedOwner {
     address private immutable i_stablecoinAddress;
     DecentralizedStableCoin private immutable i_stablecoin;
     address private immutable i_ethPriceFeed;
+    address private immutable i_owner;
 
     uint256 public constant PRECISION = 1e18;
+    uint256 public constant ADDITIONAL_FEED_PRECISION = 1e10;
 
     // Project status enumeration
     enum Status {
@@ -70,6 +73,12 @@ contract Project is ConfirmedOwner {
         string actionType,
         address indexed executor,
         uint256 timestamp
+    );
+    event PayOutInformation(
+        string name,
+        uint256 total,
+        uint256 rised,
+        uint256 remaining
     );
 
     /**
@@ -106,6 +115,7 @@ contract Project is ConfirmedOwner {
         i_stablecoinAddress = _coinAddress;
         i_ethPriceFeed = _ethPriceFeed;
         i_stablecoin = DecentralizedStableCoin(i_stablecoinAddress);
+        i_owner = msg.sender;
     }
 
     // Getters
@@ -116,6 +126,14 @@ contract Project is ConfirmedOwner {
      */
     function getTitle() external view returns (string memory) {
         return s_title;
+    }
+
+    /**
+     * @dev Returns the stablecoin of the project.
+     * @return The stablecoin of the project.
+     */
+    function getStablecoinAddress() external view returns (address) {
+        return i_stablecoinAddress;
     }
 
     /**
@@ -287,8 +305,8 @@ contract Project is ConfirmedOwner {
             // Payment in ETH
             if (msg.value < getEthValueOfUsd(1))
                 revert ContributionMustBeGreaterThanZero();
-            usdContribution = (msg.value * PRECISION) / getEthPrice();
-
+            usdContribution = (msg.value * getEthPrice()) / PRECISION;
+            emit PayOutInformation("DETAIL PROJECT", s_cost, s_raised, s_cost-s_raised);
             // Mint equivalent stablecoins and send to this contract
             DecentralizedStableCoin(i_stablecoinAddress).mint(address(this), usdContribution);
         } else {
@@ -312,6 +330,18 @@ contract Project is ConfirmedOwner {
         s_raised += usdContribution;
 
         emit Action("PROJECT BACKED", _backer, block.timestamp);
+
+        if (s_raised >= s_cost) {
+            s_status = Status.APPROVED;
+            emit Action("STATUS UPDATED TO APPROVED", _backer, block.timestamp);
+        }
+
+        if (block.timestamp >= s_expiresAt) {
+            s_status = Status.REVERTED;
+            emit Action("STATUS UPDATED TO REVERTED", _backer, block.timestamp);
+            performRefund();
+        }
+        emit PayOutInformation("BACKED DETAIL", s_raised, usdContribution, s_backerAddresses.length);
     }
 
     /**
@@ -328,9 +358,18 @@ contract Project is ConfirmedOwner {
         if (s_status != Status.OPEN) revert ProjectNotOpen();
         if (!s_isActive) revert ProjectNotActive();
 
-        this.setTitle(_title);
-        this.setDescription(_description);
-        this.setImageURL(_imageURL);
+        // this.setTitle(_title);
+        if (bytes(_title).length == 0) revert TitleCannotBeEmpty();
+        s_title = _title;
+        emit Action("TITLE UPDATED", msg.sender, block.timestamp);
+        // this.setDescription(_description);
+        if (bytes(_description).length == 0) revert DescriptionCannotBeEmpty();
+        s_description = _description;
+        emit Action("DESCRIPTION UPDATED", msg.sender, block.timestamp);
+        // this.setImageURL(_imageURL);
+        if (bytes(_imageURL).length == 0) revert ImageURLCannotBeEmpty();
+        s_imageURL = _imageURL;
+        emit Action("IMAGE URL UPDATED", msg.sender, block.timestamp);
 
         emit Action("PROJECT UPDATED", msg.sender, block.timestamp);
     }
@@ -356,7 +395,7 @@ contract Project is ConfirmedOwner {
      * @dev All payouts are made in stablecoin
      */
     function payOutProject() external onlyOwner {
-        if (s_status != Status.APPROVED) revert ProjectNotOpen();
+        if (s_status != Status.APPROVED) revert ProjectNotApproved();
         if (!s_isActive) revert ProjectNotActive();
 
         s_status = Status.PAIDOUT;
@@ -406,8 +445,6 @@ contract Project is ConfirmedOwner {
         }
     }
 
-    // Oracle functions
-
     /**
      * @notice Gets the current USDC price from the oracle
      * @return The USDC price scaled by ADDITIONAL_FEED_PRECISION
@@ -415,7 +452,8 @@ contract Project is ConfirmedOwner {
     function getEthPrice() public view returns (uint256) {
         AggregatorV3Interface priceFeed = AggregatorV3Interface(i_ethPriceFeed);
         (, int256 price, , , ) = priceFeed.staleCheckLatestRoundData();
-        return uint256(price);
+        uint256 correctPrice = uint256(price) * ADDITIONAL_FEED_PRECISION;
+        return correctPrice / PRECISION;
     }
 
     /**
@@ -425,5 +463,9 @@ contract Project is ConfirmedOwner {
      */
     function getEthValueOfUsd(uint256 usdAmount) public view returns (uint256) {
         return (usdAmount * getEthPrice()) / PRECISION;
+    }
+
+    function getOwner() external view returns (address) {
+        return i_owner;
     }
 }

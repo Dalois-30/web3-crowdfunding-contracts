@@ -2,6 +2,7 @@
 pragma solidity 0.8.25;
 
 import "./Project.sol";
+import "./DecentralizedStableCoin.sol";
 import {ConfirmedOwner} from "@chainlink/contracts/src/v0.8/shared/access/ConfirmedOwner.sol";
 
 /**
@@ -10,11 +11,11 @@ import {ConfirmedOwner} from "@chainlink/contracts/src/v0.8/shared/access/Confir
  * Author: Nguenang Dalois
  */
 contract CrowdfundingManager is ConfirmedOwner {
-    // error Manager_messages
-    error Manager_TitleCannotBeEmpty();
-    error Manager_DescriptionCannotBeEmpty();
-    error Manager_CostCannotBeZero();
-    error Manager_DeadlineMustBeInTheFuture();
+    // error Manager__messages
+    error Manager__TitleCannotBeEmpty();
+    error Manager__DescriptionCannotBeEmpty();
+    error Manager__CostCannotBeZero();
+    error Manager__DeadlineMustBeInTheFuture();
 
     // Struct to store statistics
     struct Stats {
@@ -34,6 +35,8 @@ contract CrowdfundingManager is ConfirmedOwner {
     // Array to store all projects
     Project[] private s_projects;
 
+    DecentralizedStableCoin private i_stableCoin;
+
     // State variables
     uint8 private s_projectTax;
     uint256 private s_projectCount;
@@ -48,13 +51,13 @@ contract CrowdfundingManager is ConfirmedOwner {
      */
     constructor(
         uint8 _projectTax,
-        address _coinAddress,
         address _ethPriceFeed
     ) ConfirmedOwner(msg.sender) {
         i_owner = msg.sender;
         s_projectTax = _projectTax;
-        i_stablecoinAddress = _coinAddress;
         i_ethPriceFeed = _ethPriceFeed;
+        i_stableCoin = new DecentralizedStableCoin();
+        i_stablecoinAddress = address(i_stableCoin);
     }
 
     /**
@@ -73,10 +76,10 @@ contract CrowdfundingManager is ConfirmedOwner {
         uint256 cost,
         uint256 expiresAt
     ) external onlyOwner returns (address) {
-        if (bytes(title).length == 0) revert Manager_TitleCannotBeEmpty();
-        if (bytes(description).length == 0) revert Manager_DescriptionCannotBeEmpty();
-        if (cost == 0) revert Manager_CostCannotBeZero();
-        if (expiresAt <= block.timestamp) revert Manager_DeadlineMustBeInTheFuture();
+        if (bytes(title).length == 0) revert Manager__TitleCannotBeEmpty();
+        if (bytes(description).length == 0) revert Manager__DescriptionCannotBeEmpty();
+        if (cost == 0) revert Manager__CostCannotBeZero();
+        if (expiresAt <= block.timestamp) revert Manager__DeadlineMustBeInTheFuture();
 
         Project newProject = new Project(title, description, imageURL, msg.sender, i_stablecoinAddress, i_ethPriceFeed, cost, expiresAt, s_projectTax);
         s_projects.push(newProject);

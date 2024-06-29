@@ -21,12 +21,9 @@ contract DeployManagerScript is Script {
         // After startBroadcast -> real transaction
         HelperConfig helperConfig = new HelperConfig();
         address ethUsdPriceFeed = helperConfig.activeNetworkConfig();
-        DecentralizedStableCoin stablecoin;
         
         vm.startBroadcast();
-        DeployCoinScript deployCoin = new DeployCoinScript();
-        stablecoin = deployCoin.run();
-        CrowdfundingManager crowdfundingManager = new CrowdfundingManager(PROJECT_TAX, address(stablecoin), ethUsdPriceFeed);
+        CrowdfundingManager crowdfundingManager = new CrowdfundingManager(PROJECT_TAX, ethUsdPriceFeed);
         vm.stopBroadcast();
         console2.log("Manager deployed at:", address(crowdfundingManager));
         return crowdfundingManager;

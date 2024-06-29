@@ -25,16 +25,19 @@ contract CrowdfundingManager is ConfirmedOwner {
     }
 
     // Mapping from project addresses to Project instances
-    mapping(address => Project) private projectByAddress;
+    mapping(address => Project) private s_projectByAddress;
+
     address private immutable i_owner;
+    address private immutable i_stablecoinAddress;
+    address private immutable i_ethPriceFeed;
 
     // Array to store all projects
     Project[] private s_projects;
 
     // State variables
     uint8 private s_projectTax;
-    uint256 private projectCount;
-    Stats private stats;
+    uint256 private s_projectCount;
+    Stats private s_stats;
 
     // Event emitted when a new project is created
     event ProjectCreated(address projectAddress, address owner, uint256 timestamp);
@@ -43,9 +46,15 @@ contract CrowdfundingManager is ConfirmedOwner {
      * @dev Constructor of the CrowdfundingManager contract.
      * @param _projectTax The percentage tax levied on projects.
      */
-    constructor(uint8 _projectTax) ConfirmedOwner(msg.sender) {
+    constructor(
+        uint8 _projectTax,
+        address _coinAddress,
+        address _ethPriceFeed
+    ) ConfirmedOwner(msg.sender) {
         i_owner = msg.sender;
         s_projectTax = _projectTax;
+        i_stablecoinAddress = _coinAddress;
+        i_ethPriceFeed = _ethPriceFeed;
     }
 
     /**
@@ -69,11 +78,11 @@ contract CrowdfundingManager is ConfirmedOwner {
         if (cost == 0) revert Manager_CostCannotBeZero();
         if (expiresAt <= block.timestamp) revert Manager_DeadlineMustBeInTheFuture();
 
-        Project newProject = new Project(title, description, imageURL, msg.sender, cost, expiresAt, s_projectTax);
+        Project newProject = new Project(title, description, imageURL, msg.sender, i_stablecoinAddress, i_ethPriceFeed, cost, expiresAt, s_projectTax);
         s_projects.push(newProject);
-        projectByAddress[address(newProject)] = newProject;
-        stats.totalProjects += 1;
-        projectCount++;
+        s_projectByAddress[address(newProject)] = newProject;
+        s_stats.totalProjects += 1;
+        s_projectCount++;
 
         emit ProjectCreated(address(newProject), msg.sender, block.timestamp);
         return address(newProject);
@@ -85,17 +94,15 @@ contract CrowdfundingManager is ConfirmedOwner {
      * @param title The new title of the project.
      * @param description The new description of the project.
      * @param imageURL The new URL of the project image.
-     * @param expiresAt The new expiration date of the project.
      */
     function updateProject(
         address projectAddress,
         string memory title,
         string memory description,
-        string memory imageURL,
-        uint256 expiresAt
+        string memory imageURL
     ) external onlyOwner {
-        Project project = projectByAddress[projectAddress];
-        project.updateProject(title, description, imageURL, expiresAt);
+        Project project = s_projectByAddress[projectAddress];
+        project.updateProject(title, description, imageURL);
     }
 
     /**
@@ -103,7 +110,7 @@ contract CrowdfundingManager is ConfirmedOwner {
      * @param projectAddress The address of the project to delete.
      */
     function deleteProject(address projectAddress) external onlyOwner {
-        Project project = projectByAddress[projectAddress];
+        Project project = s_projectByAddress[projectAddress];
         project.deleteProject();
     }
 
@@ -112,11 +119,11 @@ contract CrowdfundingManager is ConfirmedOwner {
      * @param projectAddress The address of the project to contribute to.
      */
     function backProject(address projectAddress) external payable {
-        Project project = projectByAddress[projectAddress];
+        Project project = s_projectByAddress[projectAddress];
         project.backProject{value: msg.value}(msg.sender);
-        stats.totalBacking += 1;
-        stats.totalContributors += 1;
-        stats.totalDonations += msg.value;
+        s_stats.totalBacking += 1;
+        s_stats.totalContributors += 1;
+        s_stats.totalDonations += msg.value;
     }
 
     /**
@@ -124,7 +131,7 @@ contract CrowdfundingManager is ConfirmedOwner {
      * @param projectAddress The address of the project to request a refund from.
      */
     function requestRefund(address projectAddress) external onlyOwner {
-        Project project = projectByAddress[projectAddress];
+        Project project = s_projectByAddress[projectAddress];
         project.requestRefund();
     }
 
@@ -133,7 +140,7 @@ contract CrowdfundingManager is ConfirmedOwner {
      * @param projectAddress The address of the project to pay out.
      */
     function payOutProject(address projectAddress) external onlyOwner {
-        Project project = projectByAddress[projectAddress];
+        Project project = s_projectByAddress[projectAddress];
         project.payOutProject();
     }
 
@@ -151,7 +158,7 @@ contract CrowdfundingManager is ConfirmedOwner {
      * @return Project The project corresponding to the address.
      */
     function getProject(address projectAddress) external view returns (Project) {
-        return projectByAddress[projectAddress];
+        return s_projectByAddress[projectAddress];
     }
 
     /**
@@ -161,7 +168,7 @@ contract CrowdfundingManager is ConfirmedOwner {
      * [cost, raised, backers, timestamp, expiresAt, status].
      */
     function getProjectStats(address projectAddress) external view returns (uint256[6] memory) {
-        Project project = projectByAddress[projectAddress];
+        Project project = s_projectByAddress[projectAddress];
         return [
             project.getCost(),
             project.getRaised(),
@@ -186,7 +193,7 @@ contract CrowdfundingManager is ConfirmedOwner {
      * @param title The new title for the project.
      */
     function updateProjectTitle(address projectAddress, string memory title) external onlyOwner {
-        Project(projectByAddress[projectAddress]).setTitle(title);
+        Project(s_projectByAddress[projectAddress]).setTitle(title);
     }
 
     /**
@@ -195,7 +202,7 @@ contract CrowdfundingManager is ConfirmedOwner {
      * @param description The new description for the project.
      */
     function updateProjectDescription(address projectAddress, string memory description) external onlyOwner {
-        Project(projectByAddress[projectAddress]).setDescription(description);
+        Project(s_projectByAddress[projectAddress]).setDescription(description);
     }
 
     /**
@@ -204,7 +211,7 @@ contract CrowdfundingManager is ConfirmedOwner {
      * @param imageURL The new image URL for the project.
      */
     function updateProjectImageURL(address projectAddress, string memory imageURL) external onlyOwner {
-        Project(projectByAddress[projectAddress]).setImageURL(imageURL);
+        Project(s_projectByAddress[projectAddress]).setImageURL(imageURL);
     }
 
     /**
@@ -213,7 +220,7 @@ contract CrowdfundingManager is ConfirmedOwner {
      * @param expiresAt The new expiration timestamp for the project.
      */
     function updateProjectExpiration(address projectAddress, uint256 expiresAt) external onlyOwner {
-        Project(projectByAddress[projectAddress]).setExpiresAt(expiresAt);
+        Project(s_projectByAddress[projectAddress]).setExpiresAt(expiresAt);
     }
 
     /**
@@ -222,7 +229,7 @@ contract CrowdfundingManager is ConfirmedOwner {
      * @param projectTax The new project tax percentage for the project.
      */
     function updateProjectTax(address projectAddress, uint256 projectTax) external onlyOwner {
-        Project(projectByAddress[projectAddress]).setProjectTax(projectTax);
+        Project(s_projectByAddress[projectAddress]).setProjectTax(projectTax);
     }
 
     function getOwner() external view returns (address) {

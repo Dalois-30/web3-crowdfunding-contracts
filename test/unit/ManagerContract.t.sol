@@ -4,7 +4,8 @@ pragma solidity 0.8.25;
 import {Test, console} from "forge-std/Test.sol";
 import {CrowdfundingManager} from "../../src/crowdfunding/CrowdfundingManager.sol";
 import {Project} from "../../src/crowdfunding/Project.sol";
-import {DeployManagerScript} from "../../script/DeployManager.s.sol";
+import {DeployCoinScript} from "../../script/crowdfunding/DeployCoin.s.sol";
+import {DeployManagerScript} from "../../script/crowdfunding/DeployManager.s.sol";
 
 contract ManagerTest is Test {
     CrowdfundingManager manager;
@@ -78,14 +79,12 @@ contract ManagerTest is Test {
         string memory titleTest = "Project Farm City";
         string memory descriptionTest = "Project Description";
         string memory imageURLTest = "Image URL";
-        uint256 expireAtTest = 1719719276;
         vm.prank(manager.getOwner());
         manager.updateProject(
             projectAddress,
             titleTest,
             descriptionTest,
-            imageURLTest,
-            expireAtTest
+            imageURLTest
         );
         // console.log("====================================Project Updated Informations====================================");
         // console.log("Title:", project.getTitle());
@@ -97,7 +96,6 @@ contract ManagerTest is Test {
         assertEq(titleTest, project.getTitle());
         assertEq(descriptionTest, project.getDescription());
         assertEq(imageURLTest, project.getImageURL());
-        assertEq(expireAtTest, project.getExpiresAt());
     }
 
     function testBackProject() public {

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import {ConfirmedOwner} from "@chainlink/contracts/src/v0.8/shared/access/ConfirmedOwner.sol";
-import {OracleLib, AggregatorV3Interface} from "../libraries/OracleLib.sol";
+import { ConfirmedOwner } from "@chainlink/contracts/src/v0.8/shared/access/ConfirmedOwner.sol";
+import { OracleLib, AggregatorV3Interface } from "../libraries/OracleLib.sol";
 import "./DecentralizedStableCoin.sol";
 
 /**
@@ -108,23 +108,126 @@ contract Project is ConfirmedOwner {
         i_stablecoin = DecentralizedStableCoin(i_stablecoinAddress);
     }
 
+    // Getters
+
     /**
-     * @dev Getter for the title.
+     * @dev Returns the title of the project.
+     * @return The title of the project.
      */
     function getTitle() external view returns (string memory) {
         return s_title;
     }
 
     /**
-     * @dev Getter for the admin owner.
+     * @dev Returns the admin owner address of the project.
+     * @return The admin owner address.
      */
     function getAdminOwner() external view returns (address) {
         return i_adminOwner;
     }
 
     /**
-     * @dev Setter for the title. Only callable by the owner.
-     * @param _title The new title.
+     * @dev Returns the description of the project.
+     * @return The description of the project.
+     */
+    function getDescription() external view returns (string memory) {
+        return s_description;
+    }
+
+    /**
+     * @dev Returns the list of backers' addresses.
+     * @return The list of backers' addresses.
+     */
+    function getAllBackers() external view returns (address[] memory) {
+        return s_backerAddresses;
+    }
+
+    /**
+     * @dev Returns the image URL of the project.
+     * @return The image URL of the project.
+     */
+    function getImageURL() external view returns (string memory) {
+        return s_imageURL;
+    }
+
+    /**
+     * @dev Returns the total cost of the project.
+     * @return The total cost of the project.
+     */
+    function getCost() external view returns (uint256) {
+        return s_cost;
+    }
+
+    /**
+     * @dev Returns the amount raised so far for the project.
+     * @return The amount raised so far.
+     */
+    function getRaised() external view returns (uint256) {
+        return s_raised;
+    }
+
+    /**
+     * @dev Returns the timestamp when the project was created.
+     * @return The timestamp when the project was created.
+     */
+    function getTimestamp() external view returns (uint256) {
+        return s_timestamp;
+    }
+
+    /**
+     * @dev Returns the expiration timestamp of the project.
+     * @return The expiration timestamp of the project.
+     */
+    function getExpiresAt() external view returns (uint256) {
+        return s_expiresAt;
+    }
+
+    /**
+     * @dev Returns the number of backers for the project.
+     * @return The number of backers.
+     */
+    function getBackers() external view returns (uint256) {
+        return s_backerAddresses.length;
+    }
+
+    /**
+     * @dev Returns the active status of the project.
+     * @return The active status of the project.
+     */
+    function getIsActive() external view returns (bool) {
+        return s_isActive;
+    }
+
+    /**
+     * @dev Returns the project tax percentage.
+     * @return The project tax percentage.
+     */
+    function getProjectTax() external view returns (uint256) {
+        return s_projectTax;
+    }
+
+    /**
+     * @dev Returns the current status of the project.
+     * @return The current status of the project.
+     */
+    function getStatus() external view returns (Status) {
+        return s_status;
+    }
+
+    /**
+     * @dev Returns the backer information for a given address.
+     * @param _backer The address of the backer.
+     * @return The backer information.
+     */
+    function getBacker(address _backer) external view returns (Backer memory) {
+        return s_backersOf[_backer];
+    }
+
+    // Setters
+
+    /**
+     * @dev Sets the title of the project.
+     * @param _title The new title of the project.
      */
     function setTitle(string memory _title) external onlyOwner {
         if (bytes(_title).length == 0) revert TitleCannotBeEmpty();
@@ -133,22 +236,8 @@ contract Project is ConfirmedOwner {
     }
 
     /**
-     * @dev Getter for the description.
-     */
-    function getDescription() external view returns (string memory) {
-        return s_description;
-    }
-
-    /**
-     * @dev Getter for the Backers.
-     */
-    function getAllBackers() external view returns (address[] memory) {
-        return s_backerAddresses;
-    }
-
-    /**
-     * @dev Setter for the description. Only callable by the owner.
-     * @param _description The new description.
+     * @dev Sets the description of the project.
+     * @param _description The new description of the project.
      */
     function setDescription(string memory _description) external onlyOwner {
         if (bytes(_description).length == 0) revert DescriptionCannotBeEmpty();
@@ -157,15 +246,8 @@ contract Project is ConfirmedOwner {
     }
 
     /**
-     * @dev Getter for the imageURL.
-     */
-    function getImageURL() external view returns (string memory) {
-        return s_imageURL;
-    }
-
-    /**
-     * @dev Setter for the imageURL. Only callable by the owner.
-     * @param _imageURL The new imageURL.
+     * @dev Sets the image URL of the project.
+     * @param _imageURL The new image URL of the project.
      */
     function setImageURL(string memory _imageURL) external onlyOwner {
         if (bytes(_imageURL).length == 0) revert ImageURLCannotBeEmpty();
@@ -174,89 +256,21 @@ contract Project is ConfirmedOwner {
     }
 
     /**
-     * @dev Getter for the cost.
-     */
-    function getCost() external view returns (uint256) {
-        return s_cost;
-    }
-
-    /**
-     * @dev Getter for the raised amount.
-     */
-    function getRaised() external view returns (uint256) {
-        return s_raised;
-    }
-
-    /**
-     * @dev Getter for the timestamp.
-     */
-    function getTimestamp() external view returns (uint256) {
-        return s_timestamp;
-    }
-
-    /**
-     * @dev Getter for the expiration timestamp.
-     */
-    function getExpiresAt() external view returns (uint256) {
-        return s_expiresAt;
-    }
-
-    /**
-     * @dev Setter for the expiration timestamp. Only callable by the owner.
-     * @param _expiresAt The new expiration timestamp.
+     * @dev Sets the expiration timestamp of the project.
+     * @param _expiresAt The new expiration timestamp of the project.
      */
     function setExpiresAt(uint256 _expiresAt) external onlyOwner {
         s_expiresAt = _expiresAt;
-        emit Action(
-            "EXPIRATION TIMESTAMP UPDATED",
-            msg.sender,
-            block.timestamp
-        );
+        emit Action("EXPIRATION TIMESTAMP UPDATED", msg.sender, block.timestamp);
     }
 
     /**
-     * @dev Getter for the number of backers.
-     */
-    function getBackers() external view returns (uint256) {
-        return s_backerAddresses.length;
-    }
-
-    /**
-     * @dev Getter for the active status.
-     */
-    function getIsActive() external view returns (bool) {
-        return s_isActive;
-    }
-
-    /**
-     * @dev Getter for the project tax.
-     */
-    function getProjectTax() external view returns (uint256) {
-        return s_projectTax;
-    }
-
-    /**
-     * @dev Setter for the project tax. Only callable by the owner.
-     * @param _projectTax The new project tax.
+     * @dev Sets the project tax percentage.
+     * @param _projectTax The new project tax percentage.
      */
     function setProjectTax(uint256 _projectTax) external onlyOwner {
         s_projectTax = _projectTax;
         emit Action("PROJECT TAX UPDATED", msg.sender, block.timestamp);
-    }
-
-    /**
-     * @dev Getter for the project status.
-     */
-    function getStatus() external view returns (Status) {
-        return s_status;
-    }
-
-    /**
-     * @dev Getter for the backer information.
-     * @param _backer The address of the backer.
-     */
-    function getBacker(address _backer) external view returns (Backer memory) {
-        return s_backersOf[_backer];
     }
 
     /**
@@ -271,70 +285,52 @@ contract Project is ConfirmedOwner {
         uint256 usdContribution;
         if (msg.value > 0) {
             // Payment in ETH
-            if (msg.value < getEthValueOfUsd(1)) revert ContributionMustBeGreaterThanZero();
+            if (msg.value < getEthValueOfUsd(1))
+                revert ContributionMustBeGreaterThanZero();
             usdContribution = (msg.value * PRECISION) / getEthPrice();
-            
+
             // Mint equivalent stablecoins and send to this contract
             DecentralizedStableCoin(i_stablecoinAddress).mint(address(this), usdContribution);
         } else {
             // Payment in stablecoin
             usdContribution = i_stablecoin.allowance(_backer, address(this));
             if (usdContribution == 0) revert ContributionMustBeGreaterThanZero();
-            
-            // Transfer stablecoins from backer to this contract
-            bool success = i_stablecoin.transferFrom(_backer, address(this), usdContribution);
+            bool success = i_stablecoin.transferFrom(
+                _backer,
+                address(this),
+                usdContribution
+            );
             if (!success) revert StablecoinTransferFailed();
         }
 
-        // Update backer information
+        // Update backer's contribution
         if (s_backersOf[_backer].contribution == 0) {
             s_backerAddresses.push(_backer);
         }
-
         s_backersOf[_backer].contribution += usdContribution;
         s_backersOf[_backer].timestamp = block.timestamp;
-        s_backersOf[_backer].refunded = false;
-
         s_raised += usdContribution;
 
         emit Action("PROJECT BACKED", _backer, block.timestamp);
-
-        // Check if project is fully funded
-        if (s_raised >= s_cost) {
-            s_status = Status.APPROVED;
-            emit Action("STATUS UPDATED TO APPROVED", _backer, block.timestamp);
-        }
-
-        // Check if project has expired
-        if (block.timestamp >= s_expiresAt) {
-            s_status = Status.REVERTED;
-            emit Action("STATUS UPDATED TO REVERTED", _backer, block.timestamp);
-            performRefund();
-        }
     }
 
     /**
-     * @dev Updates the project details. Only callable by the owner.
+     * @dev Updates the project information. Only callable by the owner.
      * @param _title The new title of the project.
      * @param _description The new description of the project.
-     * @param _imageURL The new URL of the project image.
-     * @param _expiresAt The new expiration timestamp of the project.
+     * @param _imageURL The new image URL of the project.
      */
     function updateProject(
         string memory _title,
         string memory _description,
-        string memory _imageURL,
-        uint256 _expiresAt
+        string memory _imageURL
     ) external onlyOwner {
+        if (s_status != Status.OPEN) revert ProjectNotOpen();
         if (!s_isActive) revert ProjectNotActive();
-        if (bytes(_title).length == 0) revert TitleCannotBeEmpty();
-        if (bytes(_description).length == 0) revert DescriptionCannotBeEmpty();
-        if (bytes(_imageURL).length == 0) revert ImageURLCannotBeEmpty();
 
-        s_title = _title;
-        s_description = _description;
-        s_imageURL = _imageURL;
-        s_expiresAt = _expiresAt;
+        this.setTitle(_title);
+        this.setDescription(_description);
+        this.setImageURL(_imageURL);
 
         emit Action("PROJECT UPDATED", msg.sender, block.timestamp);
     }
@@ -351,37 +347,6 @@ contract Project is ConfirmedOwner {
         performRefund();
 
         emit Action("PROJECT DELETED", msg.sender, block.timestamp);
-    }
-
-    /**
-     * @notice Performs refunds to all backers
-     * @dev This function is called internally when the project is reverted
-     * @dev All refunds are made in stablecoin
-     */
-    function performRefund() internal {
-        for (uint256 i = 0; i < s_backerAddresses.length; i++) {
-            address backer = s_backerAddresses[i];
-            uint256 contribution = s_backersOf[backer].contribution;
-            if (contribution > 0 && !s_backersOf[backer].refunded) {
-                s_backersOf[backer].refunded = true;
-                bool success = i_stablecoin.transfer(backer, contribution);
-                if (!success) revert StablecoinTransferFailed();
-            }
-        }
-    }
-
-    /**
-     * @dev Allows a backer to request a refund.
-     * Refunds are only processed if the project is marked as reverted or deleted.
-     */
-    function requestRefund() external {
-        if (s_status != Status.REVERTED && s_status != Status.DELETED)
-            revert ProjectNotMarkedForRefund();
-        if (!s_isActive) revert ProjectNotActive();
-
-        s_status = Status.REVERTED;
-        emit Action("STATUS UPDATED TO REVERTED", msg.sender, block.timestamp);
-        performRefund();
     }
 
     /**
@@ -410,19 +375,55 @@ contract Project is ConfirmedOwner {
         emit Action("PROJECT PAID OUT", msg.sender, block.timestamp);
     }
 
-    /// @notice Gets the current USDC price from the oracle
-    /// @return The USDC price scaled by ADDITIONAL_FEED_PRECISION
+    /**
+     * @dev Allows a backer to request a refund.
+     * Refunds are only processed if the project is marked as reverted or deleted.
+     */
+    function requestRefund() external {
+        if (s_status != Status.REVERTED && s_status != Status.DELETED)
+            revert ProjectNotMarkedForRefund();
+        if (!s_isActive) revert ProjectNotActive();
+
+        s_status = Status.REVERTED;
+        emit Action("STATUS UPDATED TO REVERTED", msg.sender, block.timestamp);
+        performRefund();
+    }
+
+    /**
+     * @notice Performs refunds to all backers
+     * @dev This function is called internally when the project is reverted
+     * @dev All refunds are made in stablecoin
+     */
+    function performRefund() internal {
+        for (uint256 i = 0; i < s_backerAddresses.length; i++) {
+            address backer = s_backerAddresses[i];
+            uint256 contribution = s_backersOf[backer].contribution;
+            if (contribution > 0 && !s_backersOf[backer].refunded) {
+                s_backersOf[backer].refunded = true;
+                bool success = i_stablecoin.transfer(backer, contribution);
+                if (!success) revert StablecoinTransferFailed();
+            }
+        }
+    }
+
+    // Oracle functions
+
+    /**
+     * @notice Gets the current USDC price from the oracle
+     * @return The USDC price scaled by ADDITIONAL_FEED_PRECISION
+     */
     function getEthPrice() public view returns (uint256) {
         AggregatorV3Interface priceFeed = AggregatorV3Interface(i_ethPriceFeed);
         (, int256 price, , , ) = priceFeed.staleCheckLatestRoundData();
         return uint256(price);
     }
 
-    /// @notice Converts a USD amount to its USDC value
-    /// @param usdAmount The amount of USD
-    /// @return The ETH value of the given USD amount
+    /**
+     * @notice Converts a USD amount to its USDC value
+     * @param usdAmount The amount of USD
+     * @return The ETH value of the given USD amount
+     */
     function getEthValueOfUsd(uint256 usdAmount) public view returns (uint256) {
         return (usdAmount * getEthPrice()) / PRECISION;
     }
-
 }

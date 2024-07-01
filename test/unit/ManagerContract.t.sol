@@ -129,14 +129,14 @@ contract ManagerTest is Test {
             manager.backProject{value: SEND_VALUE}(projectAddress);
             // console.log("Address:", project.getAllBackers()[i]);
         }
-        console.log("USDT Collected:", DecentralizedStableCoin(project.getStablecoinAddress()).balanceOf(projectAddress));
-        console.log("USDT Collected by admin:", DecentralizedStableCoin(project.getStablecoinAddress()).balanceOf(manager.getOwner()));
-        console.log("Manager Address:", address(manager).balance);
-        vm.prank(manager.getOwner());
-        manager.payOutProject(projectAddress);
-        console.log("USDT Collected 2:", DecentralizedStableCoin(project.getStablecoinAddress()).balanceOf(projectAddress));
-        console.log("USDT Collected by contract 2:", DecentralizedStableCoin(project.getStablecoinAddress()).balanceOf(project.getOwner()));
-        console.log("USDT Collected by admin 2:", DecentralizedStableCoin(project.getStablecoinAddress()).balanceOf(manager.getOwner()));
-        console.log("Manager Address:", address(manager).balance);
+        // console.log("USDT Collected:", DecentralizedStableCoin(project.getStablecoinAddress()).balanceOf(projectAddress));
+        // console.log("USDT Collected by admin:", DecentralizedStableCoin(project.getStablecoinAddress()).balanceOf(manager.getOwner()));
+        // console.log("Manager Address:", address(manager).balance);
+        // vm.prank(manager.getOwner());
+        // manager.payOutProject(projectAddress);
+        // console.log("USDT Collected 2:", DecentralizedStableCoin(project.getStablecoinAddress()).balanceOf(projectAddress));
+        // console.log("USDT Collected by contract 2:", DecentralizedStableCoin(project.getStablecoinAddress()).balanceOf(project.getOwner()));
+        // console.log("USDT Collected by admin 2:", DecentralizedStableCoin(project.getStablecoinAddress()).balanceOf(manager.getOwner()));
+        // console.log("Manager Address:", address(manager).balance);
     }
 }

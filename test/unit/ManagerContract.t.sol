@@ -139,4 +139,5 @@ contract ManagerTest is Test {
         // console.log("USDT Collected by admin 2:", DecentralizedStableCoin(project.getStablecoinAddress()).balanceOf(manager.getOwner()));
         // console.log("Manager Address:", address(manager).balance);
     }
+    // TODO: finalize the tests
 }

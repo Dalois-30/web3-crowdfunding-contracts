@@ -5,6 +5,11 @@
 DEFAULT_ANVIL_KEY := 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
 DEFAULT_ZKSYNC_LOCAL_KEY := 0x7726827caac94a7f9e1b160f7ea819f172f7b6f9d2a97f992c38edeab82d4110
 
+deploy:; forge script script/DeployContracts.s.sol --sender 0x34F1AF42413326d1255bf02B5402737C10fFbC6a --account devKey --rpc-url ${SEPOLIA_RPC_URL} --etherscan-api-key ${ETHERSCAN_API_KEY} --verify --broadcast
+
+deploy-crowd:; forge script script/crowdfunding/DeployManager.s.sol --sender 0x34F1AF42413326d1255bf02B5402737C10fFbC6a --account devKey --rpc-url ${SEPOLIA_RPC_URL} --etherscan-api-key ${ETHERSCAN_API_KEY} --verify --broadcast
+
+
 help:
 	@echo "Usage:"
 	@echo "  make deploy [ARGS=...]\n    example: make deploy ARGS=\"--network sepolia\""

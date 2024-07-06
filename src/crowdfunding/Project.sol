@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import { ConfirmedOwner } from "@chainlink/contracts/src/v0.8/shared/access/ConfirmedOwner.sol";
-import { OracleLib, AggregatorV3Interface } from "../libraries/OracleLib.sol";
+import {ConfirmedOwner} from "@chainlink/contracts/src/v0.8/shared/access/ConfirmedOwner.sol";
+import {OracleLib, AggregatorV3Interface} from "../libraries/OracleLib.sol";
 import "./DecentralizedStableCoin.sol";
 
 /**
@@ -233,12 +233,58 @@ contract Project is ConfirmedOwner {
     }
 
     /**
-     * @dev Returns the backer information for a given address.
+     * @dev Returns the complete information of a backer for a given address.
      * @param _backer The address of the backer.
-     * @return The backer information.
+     * @return contribution The amount of contribution made by the backer.
+     * @return timestamp The timestamp when the backer made the contribution.
+     * @return refunded Whether the backer has been refunded or not.
      */
-    function getBacker(address _backer) external view returns (Backer memory) {
-        return s_backersOf[_backer];
+    function getBacker(
+        address _backer
+    )
+        external
+        view
+        returns (uint256 contribution, uint256 timestamp, bool refunded)
+    {
+        return (
+            s_backersOf[_backer].contribution,
+            s_backersOf[_backer].timestamp,
+            s_backersOf[_backer].refunded
+        );
+    }
+
+    /**
+     * @dev Returns all project details.
+     * @return The project details.
+     */
+    function getProjectDetails()
+        external
+        view
+        returns (
+            string memory,
+            string memory,
+            string memory,
+            uint256,
+            uint256,
+            uint256,
+            uint256,
+            bool,
+            uint256,
+            Status
+        )
+    {
+        return (
+            s_title,
+            s_description,
+            s_imageURL,
+            s_cost,
+            s_raised,
+            s_timestamp,
+            s_expiresAt,
+            s_isActive,
+            s_projectTax,
+            s_status
+        );
     }
 
     // Setters
@@ -279,7 +325,11 @@ contract Project is ConfirmedOwner {
      */
     function setExpiresAt(uint256 _expiresAt) external onlyOwner {
         s_expiresAt = _expiresAt;
-        emit Action("EXPIRATION TIMESTAMP UPDATED", msg.sender, block.timestamp);
+        emit Action(
+            "EXPIRATION TIMESTAMP UPDATED",
+            msg.sender,
+            block.timestamp
+        );
     }
 
     /**
@@ -306,13 +356,22 @@ contract Project is ConfirmedOwner {
             if (msg.value < getEthValueOfUsd(1))
                 revert ContributionMustBeGreaterThanZero();
             usdContribution = (msg.value * getEthPrice()) / PRECISION;
-            emit PayOutInformation("DETAIL PROJECT", s_cost, s_raised, s_cost-s_raised);
+            emit PayOutInformation(
+                "DETAIL PROJECT",
+                s_cost,
+                s_raised,
+                s_cost - s_raised
+            );
             // Mint equivalent stablecoins and send to this contract
-            DecentralizedStableCoin(i_stablecoinAddress).mint(address(this), usdContribution);
+            DecentralizedStableCoin(i_stablecoinAddress).mint(
+                address(this),
+                usdContribution
+            );
         } else {
             // Payment in stablecoin
             usdContribution = i_stablecoin.allowance(_backer, address(this));
-            if (usdContribution == 0) revert ContributionMustBeGreaterThanZero();
+            if (usdContribution == 0)
+                revert ContributionMustBeGreaterThanZero();
             bool success = i_stablecoin.transferFrom(
                 _backer,
                 address(this),
@@ -341,7 +400,12 @@ contract Project is ConfirmedOwner {
             emit Action("STATUS UPDATED TO REVERTED", _backer, block.timestamp);
             performRefund();
         }
-        emit PayOutInformation("BACKED DETAIL", s_raised, usdContribution, s_backerAddresses.length);
+        emit PayOutInformation(
+            "BACKED DETAIL",
+            s_raised,
+            usdContribution,
+            s_backerAddresses.length
+        );
     }
 
     /**
@@ -407,7 +471,10 @@ contract Project is ConfirmedOwner {
         // Transfer tax to the contract owner
         bool successTax = i_stablecoin.transfer(msg.sender, tax);
         // Transfer remaining amount to the project admin
-        bool successPayout = i_stablecoin.transfer(i_adminOwner, amountAfterTax);
+        bool successPayout = i_stablecoin.transfer(
+            i_adminOwner,
+            amountAfterTax
+        );
 
         if (!successTax || !successPayout) revert StablecoinTransferFailed();
 

@@ -17,6 +17,15 @@ contract ManagerTest is Test {
     uint256 constant SEND_VALUE = 0.1 ether;
     uint256 constant STARTING_BALANCE = 10 ether;
 
+        // Project status enumeration
+    enum Status {
+        OPEN,
+        APPROVED,
+        REVERTED,
+        DELETED,
+        PAIDOUT
+    }
+
     address projectAddress;
     uint256 cost = 31500;
     uint256 expireAt = 1719716276;
@@ -48,6 +57,7 @@ contract ManagerTest is Test {
     }
 
     function testCreateProject() public {
+        
         string memory titleTest = "Project Farm City";
         string memory descriptionTest = "Project Description";
         string memory imageURLTest = "Image URL";
@@ -62,13 +72,26 @@ contract ManagerTest is Test {
             expireAtTest
         );
         project = Project(projectAddress);
+        (string memory s_title, 
+        string memory s_description, 
+        string memory s_imageURL, 
+        uint256 s_cost, 
+        uint256 s_raised, 
+        uint256 s_timestamp, 
+        uint256 s_expiresAt, 
+        bool s_isActive, 
+        uint256 s_projectTax, 
+         ) = project.getProjectDetails();
         // console.log("Project created at:", projectAddress);
-        // console.log("====================================Project Informations====================================");
-        // console.log("Title:", project.getTitle());
-        // console.log("Description:", project.getDescription());
-        // console.log("Image:", project.getImageURL());
-        // console.log("Cost:", project.getCost());
-        // console.log("Expire At:", project.getExpiresAt());
+        console.log("====================================Project Informations====================================");
+        console.log("Title:", s_title);
+        console.log("Description:", s_description);
+        console.log("Image:", s_imageURL);
+        console.log("Cost:", s_cost);
+        console.log("s_raised:", s_raised);
+        console.log("s_projectTax:", s_projectTax);
+        console.log("Expire At:", s_expiresAt);
+        // console.log("s_status:", s_status);
 
         assertEq(titleTest, project.getTitle());
         assertEq(descriptionTest, project.getDescription());
@@ -103,7 +126,12 @@ contract ManagerTest is Test {
     function testBackProject() public {
         vm.prank(USER);
         manager.backProject{value: SEND_VALUE}(projectAddress);
+        (uint256 contribution, uint256 timestamp, bool refunded) = Project(projectAddress).getBacker(USER);
+        console.log("contribution:", contribution);
+        console.log("timestamp:", timestamp);
+        console.log("refunded:", refunded);
         assertEq(address(projectAddress).balance, SEND_VALUE);
+
     }
 
     function testRequestRefund() public {
